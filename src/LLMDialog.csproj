@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LLMDialogMod</AssemblyName>
+    <RootNamespace>LLMDialogMod</RootNamespace>
+    <EnableHarmonySupport>true</EnableHarmonySupport>
+    <GamePath>F:\SteamLibrary\steamapps\common\Stardew Valley</GamePath>
+    <EnableModDeploy>false</EnableModDeploy>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.1.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="manifest.json" CopyToOutputDirectory="Always" />
+    <None Include="config.json" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+</Project>

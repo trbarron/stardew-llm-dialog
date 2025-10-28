@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+*.dll
+*.pdb
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+
+# Visual Studio Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+
+# Stardew Valley specific
+StardewModdingAPI.runtimeconfig.json
