@@ -8,13 +8,11 @@ Replaces character dialogue in Stardew Valley with AI-generated responses using 
 - Character-specific personalities and speaking styles
 - Context awareness (season, weather, day, etc.)
 - Caching system to avoid repeated API calls
-- Fallback to predefined dialogue if API fails
-- Customizable character personalities (see example below)
 
 ## Screenshots
 
 ![Alex with F1 Racing Personality](assets/AlexF1.PNG)
-*Example: Alex modified to be an F1 racing enthusiast, showing how you can customize character personalities*
+*Example: Alex modified to be an F1 racing enthusiast*
 
 ## Installation
 
