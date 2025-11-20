@@ -1,16 +1,16 @@
 {
-    "Format": "2.0.0",
-    "Author": "TylerBarron",
-    "Name": "LLM Dialog Mod",
-    "Version": "1.1.0",
-    "Description": "Replaces character dialog with LLM-generated responses",
-    "UniqueID": "TylerBarron.LLMDialog",
-    "EntryDll": "LLMDialogMod.dll",
-    "UpdateKeys": [],
-    "Dependencies": [
-      {
-        "UniqueID": "Pathoschild.ContentPatcher",
-        "MinimumVersion": "1.29.0"
-      }
-    ]
-  }
+  "Format": "2.0.0",
+  "Author": "TylerBarron",
+  "Name": "LLM Dialog Mod",
+  "Version": "1.1.1",
+  "Description": "Replaces character dialog with LLM-generated responses",
+  "UniqueID": "TylerBarron.LLMDialog",
+  "EntryDll": "LLMDialogMod.dll",
+  "UpdateKeys": [],
+  "Dependencies": [
+    {
+      "UniqueID": "Pathoschild.ContentPatcher",
+      "MinimumVersion": "1.29.0"
+    }
+  ]
+}
