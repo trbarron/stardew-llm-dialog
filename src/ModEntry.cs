@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 using StardewModdingAPI;
 using StardewValley;
@@ -16,6 +17,8 @@ namespace LLMDialogMod
         private AIDialogueGenerator aiGenerator;
         private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _mainThreadActions = new();
         private readonly HashSet<string> _processedDialogues = new();
+        private DateTime _lastDialogueUpdate = DateTime.MinValue;
+        private string _lastProcessedDialogue = "";
 
         public override void Entry(IModHelper helper)
         {
@@ -58,10 +61,6 @@ namespace LLMDialogMod
             aiGenerator = new AIDialogueGenerator(client, dialogCache, Config, Monitor);
 
             Monitor.Log("LLM Dialog Mod Initialized (On-Demand Mode)", LogLevel.Info);
-            
-            // Add console commands
-
-            Helper.ConsoleCommands.Add("debug_dialogue", "Debug dialogue system", DebugDialogue);
         }
 
         private void OnUpdateTicked(object sender, StardewModdingAPI.Events.UpdateTickedEventArgs e)
@@ -75,6 +74,7 @@ namespace LLMDialogMod
             // Only run logic if a dialogue is active
             if (!Game1.dialogueUp || Game1.currentSpeaker == null)
             {
+                _lastProcessedDialogue = "";
                 return;
             }
 
@@ -85,6 +85,12 @@ namespace LLMDialogMod
                 string originalText = currentDialogue.getCurrentDialogue();
                 string characterName = Game1.currentSpeaker.Name;
                 string uniqueId = $"{characterName}:{originalText}";
+
+                // Skip if this is the same dialogue we just processed (cooldown check)
+                if (uniqueId == _lastProcessedDialogue && (DateTime.Now - _lastDialogueUpdate).TotalMilliseconds < 500)
+                {
+                    return;
+                }
 
                 // Skip if already processed or is our placeholder
                 if (_processedDialogues.Contains(uniqueId) || originalText == "..." || originalText == "Thinking...")
@@ -100,6 +106,8 @@ namespace LLMDialogMod
 
                 // Mark as processed to avoid loops
                 _processedDialogues.Add(uniqueId);
+                _lastProcessedDialogue = uniqueId;
+                _lastDialogueUpdate = DateTime.Now;
 
                 Monitor.Log($"Intercepted dialogue for {characterName}", LogLevel.Debug);
                 
@@ -116,29 +124,82 @@ namespace LLMDialogMod
                 {
                     // Use cached dialogue immediately
                     string cachedResponse = dialogCache[cacheKey];
+                    
+                    // Mark as processed before updating to prevent re-interception
+                    string cachedResponseId = $"{characterName}:{cachedResponse}";
+                    _processedDialogues.Add(cachedResponseId);
+                    _lastProcessedDialogue = cachedResponseId;
+                    _lastDialogueUpdate = DateTime.Now;
+                    
                     UpdateDialogueBox(characterName, cachedResponse, originalText);
                     Monitor.Log($"Used cached dialogue for {characterName}", LogLevel.Debug);
                 }
                 else
                 {
-                    // Not cached, generate in background
+                    // Not cached, show loading and wait up to 4 seconds for API response
+                    string loadingId = $"{characterName}:...";
+                    _processedDialogues.Add(loadingId);
+                    _lastProcessedDialogue = loadingId;
+                    _lastDialogueUpdate = DateTime.Now;
+                    UpdateDialogueBox(characterName, "...", originalText);
+                    
                     Task.Run(async () =>
                     {
-                        string aiResponse = await aiGenerator.GenerateAIDialogueAsync(characterName, dialogueKey, originalText, currentDay);
+                        var generateTask = aiGenerator.GenerateAIDialogueAsync(characterName, dialogueKey, originalText, currentDay);
                         
-                        // Cache it
-                        dialogCache[cacheKey] = aiResponse;
-
-                        // Schedule UI update on main thread
-                        _mainThreadActions.Enqueue(() =>
+                        // Wait up to 4 seconds for the response
+                        if (await Task.WhenAny(generateTask, Task.Delay(8000)) == generateTask)
                         {
-                            // Check if dialogue is still up and it's the same speaker
-                            if (Game1.dialogueUp && Game1.currentSpeaker != null && Game1.currentSpeaker.Name == characterName)
+                            // Task completed within 4 seconds
+                            string aiResponse = await generateTask;
+                            dialogCache[cacheKey] = aiResponse;
+
+                            // Schedule UI update on main thread
+                            _mainThreadActions.Enqueue(() =>
                             {
-                                UpdateDialogueBox(characterName, aiResponse, originalText);
-                                Monitor.Log($"Updated dialogue for {characterName}", LogLevel.Debug);
-                            }
-                        });
+                                // Check if dialogue is still up and it's the same speaker
+                                if (Game1.dialogueUp && Game1.currentSpeaker != null && 
+                                    Game1.currentSpeaker.Name == characterName &&
+                                    Game1.currentSpeaker.CurrentDialogue.Count > 0)
+                                {
+                                    var currentText = Game1.currentSpeaker.CurrentDialogue.Peek().getCurrentDialogue();
+                                    if (currentText == "...")
+                                    {
+                                        // Mark the AI response as processed BEFORE updating to prevent re-interception
+                                        string aiResponseId = $"{characterName}:{aiResponse}";
+                                        _processedDialogues.Add(aiResponseId);
+                                        _lastProcessedDialogue = aiResponseId;
+                                        _lastDialogueUpdate = DateTime.Now;
+                                        
+                                        UpdateDialogueBox(characterName, aiResponse, "...");
+                                        Monitor.Log($"Updated dialogue for {characterName}", LogLevel.Debug);
+                                    }
+                                }
+                            });
+                        }
+                        else
+                        {
+                            // Timeout - show original dialogue
+                            Monitor.Log($"API call took longer than 4 seconds for {characterName}, showing original dialogue", LogLevel.Debug);
+                            _mainThreadActions.Enqueue(() =>
+                            {
+                                if (Game1.dialogueUp && Game1.currentSpeaker != null && 
+                                    Game1.currentSpeaker.Name == characterName &&
+                                    Game1.currentSpeaker.CurrentDialogue.Count > 0)
+                                {
+                                    var currentText = Game1.currentSpeaker.CurrentDialogue.Peek().getCurrentDialogue();
+                                    if (currentText == "...")
+                                    {
+                                        UpdateDialogueBox(characterName, originalText, "...");
+                                        Monitor.Log($"Showing original dialogue for {characterName} due to timeout", LogLevel.Debug);
+                                    }
+                                }
+                            });
+                            
+                            // Continue waiting for the response to cache it
+                            string aiResponse = await generateTask;
+                            dialogCache[cacheKey] = aiResponse;
+                        }
                     });
                 }
             }
@@ -161,7 +222,7 @@ namespace LLMDialogMod
 
                 // Replace the current dialogue
                 Game1.currentSpeaker.CurrentDialogue.Pop(); // Remove original
-                Game1.currentSpeaker.CurrentDialogue.Push(new Dialogue(newText, Game1.currentSpeaker)); // Add AI
+                Game1.currentSpeaker.CurrentDialogue.Push(new Dialogue(Game1.currentSpeaker, null, newText)); // Add AI
                 
                 // Force refresh by recreating the box
                 Game1.activeClickableMenu = new StardewValley.Menus.DialogueBox(Game1.currentSpeaker.CurrentDialogue.Peek());
@@ -172,7 +233,6 @@ namespace LLMDialogMod
         {
             Monitor.Log("SMAPI Content API Ready", LogLevel.Info);
             Monitor.Log("Dialogue assets will be intercepted and modified automatically", LogLevel.Info);
-            Monitor.Log("Target characters: 12 marriage candidates + 20 non-marriage candidates (32 total)", LogLevel.Info);
         }
     }
 
@@ -221,14 +281,4 @@ namespace LLMDialogMod
             ["Krobus"] = "A shadow person who lives in the sewers. He's initially hostile but can become a friend. He's lonely and misunderstood."
         };
     }
-    {
-        public Message Message { get; set; }
-    }
-
-    public class Message
-    {
-        public string role { get; set; }
-        public string content { get; set; }
-    }
-
 }

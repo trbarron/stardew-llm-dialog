@@ -43,22 +43,25 @@ namespace LLMDialogMod
                 var playerContext = config.PlayerDescription;
                 
                 // Create the prompt for the AI
-                var prompt = $@"You are {characterName} from Stardew Valley. Generate a short, natural dialogue response (1-2 sentences max) that fits the character's personality and the current context.
+                var prompt = $@"You are {characterName} from Stardew Valley speaking to the player. Generate a short, natural dialogue (1-2 sentences max) that {characterName} would say when greeting or talking to the player.
 
-Character Context: {characterContext}
-Player Context: {playerContext}
+Character: {characterName}
+{characterContext}
+
+Player: {playerContext}
+
 Current Day: {currentDay}
-Dialogue Key: {dialogueKey}
-Original Dialogue: {originalDialogue}
+Context: {dialogueKey}
 
-Generate a response that:
-- Stays true to {characterName}'s personality
-- Is appropriate for the day and context
-- Sounds natural and conversational
+Generate dialogue that:
+- Embodies {characterName}'s unique personality and speaking style
+- Feels natural for a casual conversation
+- References the day, season, or character's interests when appropriate
 - Is 1-2 sentences maximum
-- Doesn't include any game mechanics or meta references
+- Sounds like something {characterName} would actually say
+- Is directed at the player, not a response to them
 
-Response:";
+Dialogue:";
 
                 var messages = new[]
                 {

@@ -2,7 +2,7 @@
   "Format": "2.0.0",
   "Author": "TylerBarron",
   "Name": "LLM Dialog Mod",
-  "Version": "1.1.1",
+  "Version": "1.1.2",
   "Description": "Replaces character dialog with LLM-generated responses",
   "UniqueID": "TylerBarron.LLMDialog",
   "EntryDll": "LLMDialogMod.dll",
